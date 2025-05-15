@@ -6,6 +6,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/kavshevova/project_restapi/internal/config"
 	"github.com/kavshevova/project_restapi/internal/http-server/middleware/logger"
+	"github.com/kavshevova/project_restapi/internal/lib/logger/handlers/slogpretty"
 	"github.com/kavshevova/project_restapi/internal/lib/logger/sl"
 	"github.com/kavshevova/project_restapi/internal/storage/sqlite"
 	"log"
@@ -29,11 +30,13 @@ func main() {
 	log := setupLogger(cfg.Env)
 	log.Info("Starting server", slog.String("env", cfg.Env))
 	log.Debug("debug logging enabled")
+	log.Error("ошибка")
 	storage, err := sqlite.New(cfg.StoragePath)
 	if err != nil {
 		log.Error("failed to init storage", sl.Err(err))
 		os.Exit(1) //завершаем программу с кодом 1
 	}
+	_ = storage
 
     //инициализируем роутер через пакет чи
 	router := chi.NewRouter()
@@ -55,17 +58,24 @@ func setupLogger (env string) *slog.Logger {
 	//объявили логгер и в зависимости от переменной енв мы будем его создавать
 	switch env {
 	case envLocal:
-		log = slog.New(
-			slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
-		)
+		log = setupPrettySlog()
 		case envDev:
-			log = slog.New(
-				slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
-			)
+			log = setupPrettySlog()
 			case envProd:
 				log = slog.New(
 					slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
 					)
 	}
 	return log
+}
+
+func setupPrettySlog() *slog.Logger {
+	opts := slogpretty.PrettyHandlerOptions{
+		SlogOpts: &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		},
+	}
+	handler := opts.NewPrettyHandler(os.Stdout)
+
+	return slog.New(handler)
 }
