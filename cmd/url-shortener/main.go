@@ -5,6 +5,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
 	"github.com/kavshevova/project_restapi/internal/config"
+	"github.com/kavshevova/project_restapi/internal/http-server/handlers/url/save"
 	"github.com/kavshevova/project_restapi/internal/http-server/middleware/logger"
 	"github.com/kavshevova/project_restapi/internal/lib/logger/handlers/slogpretty"
 	"github.com/kavshevova/project_restapi/internal/lib/logger/sl"
@@ -47,6 +48,7 @@ func main() {
     router.Use(middleware.Recoverer) //если случается паника внутри хендлера, из-за одного запроса не должно падать все приложение целиком поэтому мы восстанавливаем эту панику
 	router.Use(middleware.URLFormat) //чтобы можно было писать красивые урлы при подключении их к обработчику к нашему роутеру
 
+	router.Post("/url", save.New(log, storage))
 	//TODO: run server
 }
 

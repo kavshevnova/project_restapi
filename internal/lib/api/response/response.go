@@ -31,7 +31,7 @@ func ValidationError(errs validator.ValidationErrors) Response {
 
 	//перебираем все ошибки которые мы получили и формируем ответ клиенту
 	for _, err := range errs {
-		switch err.ActualTag() //смотрим что за тег у validator.ValidationErrors []FieldError {
+		switch err.ActualTag() {//смотрим что за тег у validator.ValidationErrors []FieldError
 		case "required": //такое поле было обязательным
 			errMsgs = append(errMsgs, fmt.Sprintf("failed %s is a required field", err.Field()))
 		case "url": //это поле не валидно юрл
