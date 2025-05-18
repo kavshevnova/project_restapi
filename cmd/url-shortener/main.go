@@ -12,6 +12,7 @@ import (
 	"github.com/kavshevova/project_restapi/internal/storage/sqlite"
 	"log"
 	"log/slog"
+	"net/http"
 	"os"
 )
 
@@ -49,6 +50,21 @@ func main() {
 	router.Use(middleware.URLFormat) //чтобы можно было писать красивые урлы при подключении их к обработчику к нашему роутеру
 
 	router.Post("/url", save.New(log, storage))
+
+	log.Info("Starting server", slog.String("env", cfg.Address))
+	//создаем сам сервер через http библиотеку благодаря совместимости chi с этой библиотекой
+	srv := &http.Server{
+		Addr:    cfg.Address, //наш адрес из конфига
+		Handler: router, //вся группа хендлеров роутера заключена в роутер который тоже является хендлером
+		ReadTimeout:  cfg.HTTPServer.Timeout, //наш таймаут на обработку запросов (время на чтение запроса)
+		WriteTimeout: cfg.HTTPServer.Timeout, //наш таймаут на обработку запросов (время на ответ клиенту)
+		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
+	}
+
+	if err := srv.ListenAndServe(); err != nil {
+		log.Error("failed to start server")
+	}
+	log.Error("server stopped")
 	//TODO: run server
 }
 
