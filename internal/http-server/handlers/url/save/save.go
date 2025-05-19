@@ -31,6 +31,7 @@ type URLSaver interface {
 	SaveURL(urlTOsave string, alias string) (int64, error)
 }
 
+//go:generate mockery --name URLSaver --with-expecter
 //функция-конструктор для хендлера, то есть во время подключения этого хендлера к роутеру мы будем вызываать функцию new, которая возвращает хендлер и здесь мы можем передать доп параметры которые будут установлены в каждом обработчике
 func New (log *slog.Logger, urlSaver URLSaver) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

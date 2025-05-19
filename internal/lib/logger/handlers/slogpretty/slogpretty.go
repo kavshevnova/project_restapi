@@ -24,7 +24,7 @@ type PrettyHandler struct {
 	opts PrettyHandlerOptions
 	slog.Handler
 	l     *log.Logger
-	attrs []slog.Attr
+	attrs []slog.Attr //постоянные атрибуты
 }
 
 func (opts PrettyHandlerOptions) NewPrettyHandler(
