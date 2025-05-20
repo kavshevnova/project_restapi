@@ -5,6 +5,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
 	"github.com/kavshevova/project_restapi/internal/config"
+	"github.com/kavshevova/project_restapi/internal/http-server/handlers/redirect"
 	"github.com/kavshevova/project_restapi/internal/http-server/handlers/url/save"
 	"github.com/kavshevova/project_restapi/internal/http-server/middleware/logger"
 	"github.com/kavshevova/project_restapi/internal/lib/logger/handlers/slogpretty"
@@ -50,6 +51,7 @@ func main() {
 	router.Use(middleware.URLFormat) //чтобы можно было писать красивые урлы при подключении их к обработчику к нашему роутеру
 
 	router.Post("/url", save.New(log, storage))
+	router.Get("/{alias}", redirect.New(log, storage))
 
 	log.Info("Starting server", slog.String("env", cfg.Address))
 	//создаем сам сервер через http библиотеку благодаря совместимости chi с этой библиотекой

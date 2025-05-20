@@ -1,4 +1,4 @@
-package save
+package save_test
 import (
 	"bytes"
 	"encoding/json"
