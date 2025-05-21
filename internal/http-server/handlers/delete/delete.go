@@ -26,15 +26,17 @@ func New(log *slog.Logger, deleter URLDeleter ) http.HandlerFunc {
 		alias := chi.URLParam(r, "alias")
 		if alias == "" {
 			log.Info("alias is empty")
+			w.WriteHeader(http.StatusBadRequest) // 400
 			render.JSON(w, r, resp.Error("invalid request"))
 			return
 		}
 
 		result := deleter.DeleteURL(alias)
 		if result != nil {
-		log.Info("can not delete url", sl.Err(result))
-		render.JSON(w, r, resp.Error("internal server error"))
-		return
+			log.Error("failed to delete url", sl.Err(result))
+			w.WriteHeader(http.StatusInternalServerError) // 500
+			render.JSON(w, r, resp.Error("internal server error"))
+			return
 		}
 
 		log.Info("url deleted", slog.String("alias", alias))

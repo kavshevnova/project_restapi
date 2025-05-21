@@ -2,10 +2,12 @@ package delete_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/go-chi/chi/v5"
-	"github.com/kavshevova/project_restapi/internal/http-server/handlers/delete"
+	delete2 "github.com/kavshevova/project_restapi/internal/http-server/handlers/delete"
 	"github.com/kavshevova/project_restapi/internal/http-server/handlers/delete/mocks"
+	resp "github.com/kavshevova/project_restapi/internal/lib/api/response"
 	"github.com/kavshevova/project_restapi/internal/lib/logger/handlers/slogdiscard"
 	"github.com/stretchr/testify/require"
 	"net/http"
@@ -17,24 +19,32 @@ func TestNew(t *testing.T) {
 	tests := []struct {
 		name      string
 		alias     string
-		respError string
-		respOk    string
+		wantCode int
+		want resp.Response
 		mockError error
+		setupMock bool
 	}{
 		{
 			name:      "пустой алиас",
 			alias:     "",
-			respError: "пустой алиас",
+			wantCode:  http.StatusBadRequest,
+			want:      resp.Error("invalid request"),
+			setupMock: false,
 		},
 		{
 			name:   "все нормально",
 			alias:  "какой-то алиас",
-			respOk: "ок",
+			wantCode: http.StatusOK,
+			want: resp.OK(),
+			setupMock: true,
 		},
 		{
 			name:      "внутренняя ошибка",
 			alias:     "какой-то алиас",
-			mockError: errors.New("внутренняя ошибка"),
+			wantCode:  http.StatusInternalServerError,
+			want:      resp.Error("internal server error"),
+			mockError: errors.New("internal server error"),
+			setupMock: true,
 		},
 	}
 	for _, testCase := range tests {
@@ -44,15 +54,14 @@ func TestNew(t *testing.T) {
 			t.Parallel()
 			URLDeleterMock := mocks.NewURLDeleter(t)
 
-			if testCase.mockError != nil || testCase.respError == "" {
-				URLDeleterMock.On("Delete", testCase.alias).
+			if testCase.setupMock {
+				URLDeleterMock.On("DeleteURL", testCase.alias).
 					Return(testCase.mockError).
 					Once()
 			}
 
-			handler := delete.New(slogdiscard.NewDiscardLogger(), URLDeleterMock)
-
-			req, err := http.NewRequest(http.MethodDelete, "/delete", nil)
+			handler := delete2.New(slogdiscard.NewDiscardLogger(), URLDeleterMock)
+			req, err := http.NewRequest(http.MethodDelete, "/"+testCase.alias, nil)
 			require.NoError(t, err)
 
 			rctx := chi.NewRouteContext()
@@ -62,8 +71,14 @@ func TestNew(t *testing.T) {
 			rr := httptest.NewRecorder()
 			handler.ServeHTTP(rr, req)
 
-			require.Equal(t, testCase.respOk, rr.Body.String())
+				var resp resp.Response
+				err = json.NewDecoder(rr.Body).Decode(&resp)
+				require.NoError(t, err, "ошибка декодирования JSON")
+				require.Equal(t, testCase.want, resp)
 
+			if testCase.setupMock {
+				URLDeleterMock.AssertExpectations(t)
+			}
 		})
 	}
 }

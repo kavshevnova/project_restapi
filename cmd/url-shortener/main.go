@@ -5,6 +5,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
 	"github.com/kavshevova/project_restapi/internal/config"
+	delete2 "github.com/kavshevova/project_restapi/internal/http-server/handlers/delete"
 	"github.com/kavshevova/project_restapi/internal/http-server/handlers/redirect"
 	"github.com/kavshevova/project_restapi/internal/http-server/handlers/url/save"
 	"github.com/kavshevova/project_restapi/internal/http-server/middleware/logger"
@@ -50,8 +51,19 @@ func main() {
     router.Use(middleware.Recoverer) //если случается паника внутри хендлера, из-за одного запроса не должно падать все приложение целиком поэтому мы восстанавливаем эту панику
 	router.Use(middleware.URLFormat) //чтобы можно было писать красивые урлы при подключении их к обработчику к нашему роутеру
 
-	router.Post("/url", save.New(log, storage))
+	//делаем роутер внутри роутера
+	router.Route("/url", func(r chi.Router) {
+		//поддключаем авторизацию
+		//basicauth максимально простая авторизация из пакета чи которая предполагает отправку логина и пароля в заголовке
+		r.Use(middleware.BasicAuth("url-shortener", map[string]string{
+			cfg.HTTPServer.User: cfg.HTTPServer.Password,
+		}))
+		r.Post("/", save.New(log, storage)) //r.Post так как внутренний роутер r и убираем приставку /url  так как она уже есть у всей группы
+		r.Delete("/{alias}", delete2.New(log, storage))
+	})
+	
 	router.Get("/{alias}", redirect.New(log, storage))
+
 
 	log.Info("Starting server", slog.String("env", cfg.Address))
 	//создаем сам сервер через http библиотеку благодаря совместимости chi с этой библиотекой

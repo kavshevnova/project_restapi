@@ -35,19 +35,19 @@ func TestNew(t *testing.T) {
 			name:      "empty url",
 			url:       "",
 			alias:     "example",
-			respError: "url cannot be empty",
+			respError: "failed URL is a required field",
 		},
 		{
 			name:      "invalid url",
 			url:       "example.com",
 			alias:     "example",
-			respError: "url contains invalid characters",
+			respError: "failed URL is not a valid URL field",
 		},
 		{
 			name:      "SaveURL Error",
 			url:       "http://example.com/",
 			alias:     "example",
-			respError: "failed to save url",
+			respError: "failed to add url",
 			mockError: errors.New("unexpected error"),
 		},
 	}

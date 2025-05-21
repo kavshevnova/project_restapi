@@ -21,6 +21,9 @@ type HTTPServer struct {
 	Address string `yaml:"address" env-default:"localhost:8080"`
 	Timeout time.Duration    `yaml:"timeout" env-default:"4s"`
 	IdleTimeout time.Duration `yaml:"idle_timeout" env-default:"60s"`
+	User string `yaml:"user" env-required:"true"` //env-required - переменная окружения без которых приложение не сможет работать
+	//пароль мы будем хранить в секретах гитхаба. У гитхаба есть гитхабэкшнс с помощью которого мы будем деплоить наш проект автоматически есть секция сикретс которая в защищенном виде хранит пароли и токены чтобы их не угнали и они не утекли
+	Password string `yaml:"password" env-required:"true" env:"HTTP_SERVER_PASSWORD"` // env это переменная окружения через которую будет передаваться пароль нужно написать полностью весь путь например password не пойдет
 }
 
 func MustLoad() *Config {
