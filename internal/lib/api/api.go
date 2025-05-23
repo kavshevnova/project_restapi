@@ -2,7 +2,6 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 )
 
@@ -37,7 +36,7 @@ func GetRedirect(url string) (string, error) {
 	}
 	//проверяем что статус ответа совпадает с тем который мы ожидаем
 	if resp.StatusCode != http.StatusFound {
-		return "", fmt.Errorf("#{op}: #{ErrInvalidStatusCode}: #{resp.StatusCode}")
+		return "", ErrInvalidStatusCode
 	}
 	defer func() {_ = resp.Body.Close() }() //закрываем тело ответа
 
