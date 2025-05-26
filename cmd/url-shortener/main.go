@@ -42,13 +42,13 @@ func main() {
 	}
 	_ = storage
 
-    //инициализируем роутер через пакет чи
+	//инициализируем роутер через пакет чи
 	router := chi.NewRouter()
 	//подключаем к роутеру мидлвейр, мидлвейр это хендлеры в цепочке которые обрабатывают не основной запрос, например хендлер проверяющий авторизацию в цепочке для основного хендлера создание или удаление урла
-    router.Use(middleware.RequestID) //суть этого мидлвеера что он добавляет к каждому поступающему запросу уникальный реквестайди для того чтобы если что-то пошло не так в одном запросе можно было его найти по айди и разобрать
-	router.Use(middleware.Logger) //посмотреть айпи пользователя который к нам постучался
-	router.Use(logger.New(log)) //логирует все входящие запросы, будет добавлена строчка лог, которая говорит о том что я получил запрос я его обработал и на обработку ушло столько то времени
-    router.Use(middleware.Recoverer) //если случается паника внутри хендлера, из-за одного запроса не должно падать все приложение целиком поэтому мы восстанавливаем эту панику
+	router.Use(middleware.RequestID) //суть этого мидлвеера что он добавляет к каждому поступающему запросу уникальный реквестайди для того чтобы если что-то пошло не так в одном запросе можно было его найти по айди и разобрать
+	router.Use(middleware.Logger)    //посмотреть айпи пользователя который к нам постучался
+	router.Use(logger.New(log))      //логирует все входящие запросы, будет добавлена строчка лог, которая говорит о том что я получил запрос я его обработал и на обработку ушло столько то времени
+	router.Use(middleware.Recoverer) //если случается паника внутри хендлера, из-за одного запроса не должно падать все приложение целиком поэтому мы восстанавливаем эту панику
 	router.Use(middleware.URLFormat) //чтобы можно было писать красивые урлы при подключении их к обработчику к нашему роутеру
 
 	//делаем роутер внутри роутера
@@ -64,25 +64,28 @@ func main() {
 
 	router.Get("/{alias}", redirect.New(log, storage))
 
-
 	log.Info("Starting server", slog.String("env", cfg.Address))
 	//создаем сам сервер через http библиотеку благодаря совместимости chi с этой библиотекой
 	srv := &http.Server{
-		Addr:    cfg.Address, //наш адрес из конфига
-		Handler: router, //вся группа хендлеров роутера заключена в роутер который тоже является хендлером
+		Addr:         cfg.Address,            //наш адрес из конфига
+		Handler:      router,                 //вся группа хендлеров роутера заключена в роутер который тоже является хендлером
 		ReadTimeout:  cfg.HTTPServer.Timeout, //наш таймаут на обработку запросов (время на чтение запроса)
 		WriteTimeout: cfg.HTTPServer.Timeout, //наш таймаут на обработку запросов (время на ответ клиенту)
 		IdleTimeout:  cfg.HTTPServer.IdleTimeout,
 	}
 
-	if err := srv.ListenAndServe(); err != nil {
-		log.Error("failed to start server")
-	}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Error("failed to start server")
+		}
+	}()
+
 	log.Error("server stopped")
+
 	//TODO: run server
 }
 
-func setupLogger (env string) *slog.Logger {
+func setupLogger(env string) *slog.Logger {
 	//почему логгер должен зависеть от параметра енв:
 	//локально мы хотим видеть текстовые логи
 	//в окружении дев или прод (на сервере) мы хотим видеть json. Причем на дев - логи уровня дебаг, а на проде не ниже уровня инфо.
@@ -91,12 +94,12 @@ func setupLogger (env string) *slog.Logger {
 	switch env {
 	case envLocal:
 		log = setupPrettySlog()
-		case envDev:
-			log = setupPrettySlog()
-			case envProd:
-				log = slog.New(
-					slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
-					)
+	case envDev:
+		log = setupPrettySlog()
+	case envProd:
+		log = slog.New(
+			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
+		)
 	}
 	return log
 }
