@@ -34,7 +34,7 @@ jobs: список того что наш воркфлоу должен выпо
       - name: Set up Go устанавливаем на раннер версию го которую мы хотим использовать
         uses: actions/setup-go@v2
         with:
-          go-version: 1.20.2
+          go-version: 1.24.2
       - name: Build app билдим наше приложение
         run: |
           go mod download скачиваем го мод
