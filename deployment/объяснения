@@ -1,0 +1,16 @@
+конфигурационный файл для system d
+[Unit]
+Description=Url Shortener описание нашего проекта
+After=network.target
+
+[Service]
+User=root запускать сервис мы будем от рута
+WorkingDirectory=/root/apps/url-shortener это рабочая директория
+ExecStart=/root/apps/url-shortener/url-shortener указываем что конкретно запускаем
+Restart=always параметры рестарта, то есть если сервис упадет то system d  его перезапустит
+RestartSec=4
+StandardOutput=inherit
+EnvironmentFile=/root/apps/url-shortener/config.env путь до енв файла который мы копируем с помощью гитхабэкшнс
+
+[Install]
+WantedBy=multi-user.target

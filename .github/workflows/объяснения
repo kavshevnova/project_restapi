@@ -1,0 +1,71 @@
+name: Deploy App
+имя воркфлоу которое мы будем видеть на гитхабе в списке экшнсов
+
+on: условие по которому будет триггериться данный воркфлоу
+  workflow_dispatch: вручную указываем тег и нажимаем ран воркфлоу (полуавтоматизация). То есть проект сам по себе деплоиться не будет он будет ждать какого-то тега и нажатия на кнопочку
+    inputs: воркфлоу диспатч ожидает инпутов
+      tag: в качестве инпутов он ожидает поле с именем тег
+        description: 'Tag to deploy' вот с таким описанием
+        required: true он обязательный
+
+jobs: список того что наш воркфлоу должен выполнить
+  deploy:
+    runs-on: ubuntu-latest говорим на какой операционной системе мы это будем запускать
+    env: список переменных которые будут использоваться чуть ниже (в наших степах)
+      HOST: root@5.189.237.115 указываем айпи адрес сервера который мы приобрели
+      DEPLOY_DIRECTORY: /root/apps/url-shortener директория в которую мы на удаленном сервере задеплоим наше приложение и все что с ним связано
+      CONFIG_PATH: /root/apps/url-shortener/config/prod.yaml конфиг для прода
+      ENV_FILE_PATH: /root/apps/url-shortener/config.env на удаленном сервере будет енв файл
+
+Все шаги будут выполняться на машине которая принадлежит гитхабу.
+У нас есть три сущности: свой локальный компьютер, машина на которой будет работать сервер и третья машина (которая будет выполнять билд проекта и деплой на сервер где проект будет работать постоянно)
+    steps:
+      - name: Checkout repository склонировать репозиторий на билд машину
+        uses: actions/checkout@v2 секция юзерс означает что мы используем кусочек готового воркфлоу, мы заббираем у гитхаба кусок воркфлоу который называется actions/checkout
+        with: и при этом используем тот тег который мы ввели в изначальном импуте
+          ref: ${{ github.event.inputs.tag }}
+      - name: Check if tag exists проверяем что такой тег существует
+        run: |
+          git fetch --all --tags
+          if ! git tag | grep -q "^${{ github.event.inputs.tag }}$"; then
+            echo "error: Tag '${{ github.event.inputs.tag }}' not found"
+            exit 1
+          fi
+      - name: Set up Go устанавливаем на раннер версию го которую мы хотим использовать
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.20.2
+      - name: Build app билдим наше приложение
+        run: |
+          go mod download скачиваем го мод
+          go build -o url-shortener ./cmd/url-shortener билдим и говорим куда мы его сбилдим
+      - name: Deploy to VM деплоим то что у нас получилось на удаленную машину
+        run: |
+          sudo apt-get install -y ssh rsync на раннер вначале установим рсинк который будет выполнять деплой
+          echo "$DEPLOY_SSH_KEY" > deploy_key.pem достаем из гитхабовских секретов ссш ключ и сохраняем в файл deploy_key.pm
+          chmod 600 deploy_key.pem устанавливаем файлу какие-то права
+          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "mkdir -p ${{ env.DEPLOY_DIRECTORY }}" с помощью ссш и указанного ключа создаем необходимую директорию в которую мы собираемся деплоить проект
+          rsync -avz -e 'ssh -i deploy_key.pem -o StrictHostKeyChecking=no' --exclude='.git' ./ ${{ env.HOST }}:${{ env.DEPLOY_DIRECTORY }} дергаем рсинк и говорим ему синхронизировать все файлы
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }} уточняем что переменная DEPLOY_SSH_KEY берется из раздела secrets.DEPLOY_SSH_KEY
+      - name: Remove old systemd service file удаляем конфигурационный файл system d
+        run: |
+          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "rm -f /etc/systemd/system/url-shortener.service" с помощью ссш ключа который мы сохраним на гитхаб выполняем в ссш команду рм и удаляем конфигурационный файл систем д
+      - name: List workspace contents выводит в консоль гитхаба содержимое папки
+        run: |
+          echo "Listing deployment folder contents:"
+          ls -la ${{ github.workspace }}/deployment можно посмотреть что в папке деплоймент что-то лежит (может пригодиться если что-то пошло не по плану когда деплой ломается и мы хотим это подебажить)
+      - name: Create environment file on server создаем енв файл и в нем будут храниться переменные окружения
+        run: |
+          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "\  выполняем с помощью ссш ряд команд
+          touch ${{ env.ENV_FILE_PATH }} && \ создаем енв файл
+          chmod 600 ${{ env.ENV_FILE_PATH }} && \ устанавливаем на него права
+          echo 'CONFIG_PATH=${{ env.CONFIG_PATH }}' > ${{ env.ENV_FILE_PATH }} && \  записываем в него путь до конфигурационного файла
+          echo 'HTTP_SERVER_PASSWORD=${{ secrets.AUTH_PASS }}' >> ${{ env.ENV_FILE_PATH }}"  и пароль для использования хендлера урл сейв
+      - name: Copy systemd service file  копируем свой конфигурационный файл систем д в нужное место
+        run: |
+          scp -i deploy_key.pem -o StrictHostKeyChecking=no ${{ github.workspace }}/deployment/url-shortener.service ${{ env.HOST }}:/tmp/url-shortener.service
+          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "mv /tmp/url-shortener.service /etc/systemd/system/url-shortener.service"
+      - name: Start application запускаем приложение с помощью систем д
+        run: |
+          ssh -i deploy_key.pem -o StrictHostKeyChecking=no ${{ env.HOST }} "systemctl daemon-reload && systemctl restart url-shortener.service"
