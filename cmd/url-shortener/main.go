@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
@@ -16,6 +17,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 const (
@@ -34,13 +38,12 @@ func main() {
 	log := setupLogger(cfg.Env)
 	log.Info("Starting server", slog.String("env", cfg.Env))
 	log.Debug("debug logging enabled")
-	log.Error("ошибка")
+
 	storage, err := sqlite.New(cfg.StoragePath)
 	if err != nil {
 		log.Error("failed to init storage", sl.Err(err))
 		os.Exit(1) //завершаем программу с кодом 1
 	}
-	_ = storage
 
 	//инициализируем роутер через пакет чи
 	router := chi.NewRouter()
@@ -65,6 +68,10 @@ func main() {
 	router.Get("/{alias}", redirect.New(log, storage))
 
 	log.Info("Starting server", slog.String("env", cfg.Address))
+
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
 	//создаем сам сервер через http библиотеку благодаря совместимости chi с этой библиотекой
 	srv := &http.Server{
 		Addr:         cfg.Address,            //наш адрес из конфига
@@ -80,10 +87,26 @@ func main() {
 		}
 	}()
 
-	log.Error("server stopped")
+	log.Info("server started")
 
-	//TODO: run server
+	<-done
+	log.Info("Stopping server")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Error("failed to stop server", sl.Err(err))
+
+		return
+	}
+
+	// TODO: close storage
+
+	log.Info("server stopped")
 }
+
+
 
 func setupLogger(env string) *slog.Logger {
 	//почему логгер должен зависеть от параметра енв:
