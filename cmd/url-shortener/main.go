@@ -33,6 +33,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+	configPath := os.Getenv("CONFIG_PATH")
+	log.Println("CONFIG_PATH:", configPath)
 
 	cfg := config.MustLoad()
 	log := setupLogger(cfg.Env)
